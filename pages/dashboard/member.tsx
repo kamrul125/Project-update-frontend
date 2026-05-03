@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import API from "../../utils/api";
-import Navbar from "../../components/Navbar";
-import Footer from "../../components/Footer";
 import Link from "next/link";
+import API from "../../utils/api";
+import DashboardLayout from "../../components/DashboardLayout";
 
-interface Idea {
+type Idea = {
   id: string;
   title: string;
   description?: string;
@@ -65,11 +64,10 @@ export default function MemberDashboard() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="w-full max-w-6xl px-6 py-10 mx-auto grow">
+    <DashboardLayout userRole="USER">
+      <div className="space-y-8">
+        <main className="w-full max-w-6xl px-6 py-10 mx-auto grow">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-black text-gray-900">My Dashboard</h1>
           
           {/* ✅ ১. ক্রিয়েট আইডিয়া লিঙ্ক আপডেট করা হয়েছে */}
           <Link href="/ideas/create" className="px-6 py-3 font-bold text-white transition-all bg-green-600 shadow-lg rounded-2xl hover:bg-green-700">
@@ -131,7 +129,7 @@ export default function MemberDashboard() {
           </div>
         )}
       </main>
-      <Footer />
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

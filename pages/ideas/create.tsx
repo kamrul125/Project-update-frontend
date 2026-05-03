@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import API from "../../utils/api";
-import Navbar from "../../components/Navbar";
-import Footer from "../../components/Footer";
 import { useRouter } from "next/router";
 
 export default function CreateIdea() {
@@ -76,7 +74,6 @@ export default function CreateIdea() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
       <main className="flex items-center justify-center px-4 py-16 font-sans grow">
         <div className="w-full max-w-2xl p-10 bg-white border border-gray-100 shadow-2xl rounded-4xl md:p-12">
           
@@ -154,7 +151,6 @@ export default function CreateIdea() {
           </form>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

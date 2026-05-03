@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
+import Link from "next/link";
 import API from "../../utils/api";
-import Navbar from "../../components/Navbar";
-import Footer from "../../components/Footer";
 
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1497215728101-856f4ea42174";
 
@@ -20,6 +19,9 @@ export default function IdeaDetails() {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [relatedIdeas, setRelatedIdeas] = useState<any[]>([]);
+  const [votes, setVotes] = useState(0);
+  const [isVoted, setIsVoted] = useState(false);
 
   const getAuthHeader = () => {
     const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("accessToken")) : null;
@@ -41,12 +43,24 @@ export default function IdeaDetails() {
       const ideaData = res.data?.data || res.data;
       setIdea(ideaData);
       setComments(ideaData?.comments || []);
+      setVotes(ideaData.voteCount || 0);
       // ✅ ফেচ করার সময় ইমেজ ডাটা সেট করা
       setEditData({ 
         title: ideaData.title, 
         description: ideaData.description,
         image: ideaData.image || "" 
       });
+
+      // Fetch related ideas
+      if (ideaData.category?.name) {
+        try {
+          const relatedRes = await API.get(`/ideas?category=${ideaData.category.name}&limit=4`);
+          const relatedData = relatedRes.data?.data || [];
+          setRelatedIdeas(relatedData.filter((i: any) => i.id !== id));
+        } catch (err) {
+          console.error("Related ideas fetch error:", err);
+        }
+      }
     } catch (err) {
       console.error("Fetch Error:", err);
     } finally {
@@ -77,17 +91,56 @@ export default function IdeaDetails() {
     }
   };
 
+  const handleVote = async () => {
+    if (!currentUser) {
+      alert("Please login to vote.");
+      return;
+    }
+    try {
+      const res = await API.post(`/votes/${id}`, { type: "UPVOTE" }, getAuthHeader());
+      if (res.data?.success) {
+        if (isVoted) {
+          setVotes((prev) => prev - 1);
+          setIsVoted(false);
+        } else {
+          setVotes((prev) => prev + 1);
+          setIsVoted(true);
+        }
+      }
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        alert("Please login to vote.");
+      } else {
+        alert("Vote failed.");
+      }
+    }
+  };
+
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
+    if (!currentUser) {
+      alert("Please login to comment.");
+      return;
+    }
+
     try {
-      const res = await API.post(`/ideas/${id}/comments`, { text: newComment }, getAuthHeader());
-      if (res.data.success) {
+      const res = await API.post(
+        `/comments/${id}`,
+        { content: newComment },
+        getAuthHeader()
+      );
+
+      if (res.data?.success) {
+        const addedComment = res.data?.data;
+        setComments((prev) => [addedComment, ...prev]);
         setNewComment("");
-        fetchIdeaDetails();
+      } else {
+        alert("Failed to post comment.");
       }
     } catch (err) {
-      alert("Error posting comment!");
+      console.error("Comment submit error:", err);
+      alert("Failed to post comment.");
     }
   };
 
@@ -95,7 +148,6 @@ export default function IdeaDetails() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
       <main className="w-full max-w-4xl px-6 py-12 mx-auto grow">
         
         {isEditMode ? (
@@ -160,6 +212,20 @@ export default function IdeaDetails() {
                   )}
                 </div>
                 <p className="text-lg text-gray-500 leading-relaxed whitespace-pre-line font-medium">{idea?.description}</p>
+
+                {/* Voting Section */}
+                <div className="mt-8 flex items-center gap-4">
+                  <button 
+                    onClick={handleVote} 
+                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all ${isVoted ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50'}`}
+                  >
+                    <span className="text-sm font-black">👍 Vote</span>
+                    <span className="text-lg font-black">{votes}</span>
+                  </button>
+                  <div className="text-sm text-gray-500">
+                    Category: <span className="font-semibold text-emerald-600">{idea?.category?.name || "General"}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -194,17 +260,40 @@ export default function IdeaDetails() {
                         <span className="font-black text-[11px] text-gray-800 uppercase tracking-widest">{c.user?.name || "Member"}</span>
                       </div>
                     </div>
-                    <p className="leading-relaxed text-gray-600 font-medium text-sm">{c.text || c.comment}</p>
+                    <p className="leading-relaxed text-gray-600 font-medium text-sm">{c.content || c.text || c.comment}</p>
                   </div>
                 )) : (
                   <p className="text-center py-10 font-bold text-gray-300 italic text-lg">No comments yet. Be the first! ✨</p>
                 )}
               </div>
             </div>
+
+            {/* Related Items */}
+            {relatedIdeas.length > 0 && (
+              <div className="bg-white p-8 md:p-12 rounded-4xl shadow-xl border border-gray-100 mt-10">
+                <h3 className="mb-8 text-2xl font-black text-gray-900">Related Ideas</h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {relatedIdeas.slice(0, 4).map((relatedIdea) => (
+                    <Link key={relatedIdea.id} href={`/ideas/${relatedIdea.id}`} className="group block">
+                      <div className="rounded-4xl border border-gray-100 bg-gray-50 p-6 transition hover:shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                        <div className="aspect-4/3 mb-4 overflow-hidden rounded-2xl bg-gray-100">
+                          <img src={relatedIdea.image || DEFAULT_IMAGE} alt={relatedIdea.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                        </div>
+                        <h4 className="text-lg font-black text-gray-900 dark:text-gray-50 line-clamp-2">{relatedIdea.title}</h4>
+                        <p className="mt-2 text-sm text-gray-500 line-clamp-2">{relatedIdea.description}</p>
+                        <div className="mt-4 flex items-center justify-between">
+                          <span className="text-xs font-semibold text-emerald-600">{relatedIdea.category?.name}</span>
+                          <span className="text-xs text-gray-400">👍 {relatedIdea.voteCount || 0}</span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

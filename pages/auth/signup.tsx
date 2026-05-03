@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
 import API from '../../utils/api';
 import { motion } from 'framer-motion';
 
@@ -38,7 +36,6 @@ export default function Signup() {
 
   return (
     <div className="flex flex-col min-h-screen font-sans bg-gray-50">
-      <Navbar />
       <div className="flex items-center justify-center px-4 py-20 grow">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
@@ -69,7 +66,6 @@ export default function Signup() {
           </div>
         </motion.div>
       </div>
-      <Footer />
     </div>
   );
 }

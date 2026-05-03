@@ -1,12 +1,9 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
-import Navbar from "../../components/Navbar";
-import Footer from "../../components/Footer";
 
 export default function PaymentFail() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
       <main className="flex items-center justify-center px-6 py-20 grow">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -39,7 +36,6 @@ export default function PaymentFail() {
           </div>
         </motion.div>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -1,30 +1,97 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+// @ts-ignore
+// @ts-ignore
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import DashboardLayout from "../../components/DashboardLayout";
+import Pagination from "../../components/Pagination";
 import API from "../../utils/api";
-import Navbar from "../../components/Navbar";
-import Footer from "../../components/Footer";
-import Link from "next/link";
 
-export default function MemberDashboard() {
-  const [myIdeas, setMyIdeas] = useState<any[]>([]);
+const COLORS = ["#10b981", "#6366f1", "#f97316", "#ec4899", "#38bdf8"];
+
+function formatMonth(dateString: string) {
+  const date = new Date(dateString);
+  return date.toLocaleString("default", { month: "short" });
+}
+
+export default function AdminDashboard() {
+  const [ideas, setIdeas] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const pageSize = 6;
 
-  const fetchIdeas = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await API.get("/ideas/my-ideas");
-      const rawData = res.data?.data || res.data || [];
-      setMyIdeas(Array.isArray(rawData) ? rawData : []);
+      const [ideasRes, usersRes] = await Promise.all([
+        API.get("/ideas"),
+        API.get("/users/all-users"),
+      ]);
+
+      setIdeas(ideasRes.data?.data || ideasRes.data || []);
+      setUsers(usersRes.data?.data || usersRes.data || []);
     } catch (err) {
-      console.error("Fetch Error:", err);
-      setMyIdeas([]);
+      console.error("Admin dashboard fetch error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchIdeas();
+    fetchData();
   }, []);
+
+  const filteredIdeas = useMemo(() => {
+    const term = search.toLowerCase();
+    return ideas.filter((idea) => {
+      return (
+        idea.title?.toLowerCase().includes(term) ||
+        idea.category?.name?.toLowerCase().includes(term) ||
+        idea.author?.name?.toLowerCase().includes(term)
+      );
+    });
+  }, [ideas, search]);
+
+  const paginatedIdeas = useMemo(
+    () => filteredIdeas.slice((page - 1) * pageSize, page * pageSize),
+    [filteredIdeas, page]
+  );
+
+  const bookingTrendData = useMemo(() => {
+    const monthCounts = new Map<string, number>();
+    ideas.forEach((idea) => {
+      if (!idea.createdAt) return;
+      const month = formatMonth(idea.createdAt);
+      monthCounts.set(month, (monthCounts.get(month) || 0) + 1);
+    });
+
+    const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return monthOrder
+      .filter((month) => monthCounts.has(month))
+      .map((month) => ({ month, ideas: monthCounts.get(month) ?? 0 }));
+  }, [ideas]);
+
+  const categoryData = useMemo(() => {
+    const categories = new Map<string, number>();
+    ideas.forEach((idea) => {
+      const name = idea.category?.name || "General";
+      categories.set(name, (categories.get(name) || 0) + 1);
+    });
+    return Array.from(categories.entries()).map(([name, value]) => ({ name, value }));
+  }, [ideas]);
 
   const handleDelete = async (id: string) => {
     if (!id) return;
@@ -33,7 +100,7 @@ export default function MemberDashboard() {
         const res = await API.delete(`/ideas/${id}`);
         if (res.data.success) {
           alert("Deleted Successfully! 🎉");
-          fetchIdeas();
+          fetchData();
         }
       } catch (err: any) {
         alert("Delete failed!");
@@ -41,97 +108,148 @@ export default function MemberDashboard() {
     }
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout userRole="ADMIN">
+        <div className="p-20 text-center text-slate-500">Loading admin dashboard...</div>
+      </DashboardLayout>
+    );
+  }
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <main className="w-full px-6 py-12 mx-auto grow max-w-7xl">
-        
-        {/* Header - rounded-4xl ব্যবহার করা হয়েছে */}
-        <div className="flex flex-col items-center justify-between gap-6 p-8 mb-12 bg-white border border-gray-100 shadow-sm md:flex-row rounded-4xl">
-          <div>
-            <h1 className="mb-2 text-4xl font-black text-gray-900">
-              Member <span className="text-green-600">Dashboard</span>
-            </h1>
-            <p className="text-sm italic font-medium text-gray-500">
-              আপনার সব গ্রিন আইডিয়া এখান থেকে ম্যানেজ করুন।
-            </p>
-          </div>
-          <Link 
-            href="/ideas/create" 
-            className="px-8 py-4 font-bold text-white transition-all bg-green-600 shadow-lg rounded-2xl hover:bg-green-700 active:scale-95"
-          >
-            + Create New Idea
-          </Link>
-        </div>
-
-        {/* Stats Cards - rounded-4xl ব্যবহার করা হয়েছে */}
-        <div className="grid grid-cols-1 gap-6 mb-12 text-center md:grid-cols-3">
-          <div className="p-8 transition-transform bg-white border border-gray-100 shadow-sm rounded-4xl hover:scale-105">
-            <p className="mb-2 text-xs font-black tracking-widest text-gray-400 uppercase">Total Ideas</p>
-            <p className="text-5xl font-black text-gray-900">{myIdeas.length}</p>
-          </div>
-          <div className="p-8 transition-transform bg-white border border-gray-100 shadow-sm rounded-4xl hover:scale-105">
-            <p className="mb-2 text-xs font-black tracking-widest text-gray-400 uppercase">Status</p>
-            <p className="text-4xl font-black text-green-600">Active ✅</p>
-          </div>
-          <div className="p-8 transition-transform bg-white border border-gray-100 shadow-sm rounded-4xl hover:scale-105">
-            <p className="mb-2 text-xs font-black tracking-widest text-gray-400 uppercase">Impact Point</p>
-            <p className="text-4xl font-black text-amber-500">🏆 95</p>
-          </div>
-        </div>
-
-        {/* Table Container - rounded-4xl ব্যবহার করা হয়েছে */}
-        <div className="overflow-hidden bg-white border border-gray-100 shadow-xl rounded-4xl">
-          {loading ? (
-            <div className="p-32 text-2xl font-black text-center text-gray-300 animate-pulse">
-              Loading...
+    <DashboardLayout userRole="ADMIN">
+      <div className="space-y-8">
+        <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-400">Admin Overview</p>
+              <h1 className="mt-3 text-3xl font-black text-slate-900">Idea trends & platform health</h1>
+              <p className="mt-2 text-sm text-slate-500">Insightful charts and tables for admin decision making.</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="text-[10px] font-black text-gray-400 uppercase bg-gray-50/50">
-                  <tr>
-                    <th className="px-10 py-5">Idea Details</th>
-                    <th className="px-10 py-5 text-center">Category</th>
-                    <th className="px-10 py-5 text-right">Actions</th>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-center">
+                <p className="text-sm uppercase tracking-[0.35em] text-slate-400">Total Ideas</p>
+                <p className="mt-4 text-3xl font-black text-slate-900">{ideas.length}</p>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-center">
+                <p className="text-sm uppercase tracking-[0.35em] text-slate-400">Total Users</p>
+                <p className="mt-4 text-3xl font-black text-slate-900">{users.length}</p>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-center">
+                <p className="text-sm uppercase tracking-[0.35em] text-slate-400">Categories</p>
+                <p className="mt-4 text-3xl font-black text-slate-900">{categoryData.length}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black text-slate-900">Idea trends</h2>
+                <p className="text-sm text-slate-500">Monthly idea submissions.</p>
+              </div>
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">{ideas.length} items</span>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={bookingTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} />
+                  <Tooltip />
+                  <Bar dataKey="ideas" fill="#10b981" radius={[12, 12, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-6">
+              <h2 className="text-xl font-black text-slate-900">Category breakdown</h2>
+              <p className="text-sm text-slate-500">Distribution of ideas by category.</p>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={60}
+                    outerRadius={100}
+                    fill="#10b981"
+                    label
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={"cell-" + index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Latest Ideas</h2>
+              <p className="text-sm text-slate-500">Review and monitor recently submitted ideas.</p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by title, category, or author"
+                className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-300 sm:w-80"
+              />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm text-slate-700">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.3em] text-slate-500">
+                <tr>
+                  <th className="px-5 py-4">Idea</th>
+                  <th className="px-5 py-4">Category</th>
+                  <th className="px-5 py-4">Author</th>
+                  <th className="px-5 py-4">Created</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {paginatedIdeas.map((idea) => (
+                  <tr key={idea.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-5 font-semibold text-slate-900">{idea.title}</td>
+                    <td className="px-5 py-5">
+                      <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
+                        {idea.category?.name || "General"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-5">{idea.author?.name || "Unknown"}</td>
+                    <td className="px-5 py-5">{new Date(idea.createdAt || idea.updatedAt || Date.now()).toLocaleDateString()}</td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {myIdeas.map((idea) => (
-                    <tr key={idea.id} className="transition-all hover:bg-green-50/30">
-                      <td className="px-10 py-7">
-                        <p className="text-lg font-bold text-gray-900">{idea.title}</p>
-                      </td>
-                      <td className="px-10 text-center py-7">
-                        <span className="px-4 py-1 text-[10px] font-black bg-gray-100 text-gray-600 rounded-lg">
-                          {idea.category?.name || "General"}
-                        </span>
-                      </td>
-                      <td className="px-10 space-x-3 text-right py-7">
-                        <Link 
-                          href={`/ideas/edit/${idea.id}`} 
-                          className="inline-block px-5 py-2 text-[10px] font-black text-white bg-blue-600 rounded-xl"
-                        >
-                          EDIT
-                        </Link>
-                        <button 
-                          onClick={() => handleDelete(idea.id)} 
-                          className="px-5 py-2 text-[10px] font-black text-white bg-red-500 rounded-xl"
-                        >
-                          DELETE
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </main>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      <Footer />
-    </div>
+          <div className="mt-6">
+            <Pagination
+              currentPage={page}
+              totalPages={Math.max(1, Math.ceil(filteredIdeas.length / pageSize))}
+              onPageChange={(newPage) => setPage(newPage)}
+            />
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }

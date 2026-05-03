@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import Navbar from "../../components/Navbar";
-import Footer from "../../components/Footer";
-import API from "../../utils/api";
 import { useRouter } from "next/router";
+import Link from "next/link";
+import API from "../../utils/api";
 
 export default function AdminDashboard() {
   const [ideas, setIdeas] = useState<any[]>([]);
@@ -57,7 +56,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
-      <Navbar />
       <main className="w-full max-w-7xl px-6 py-12 mx-auto grow">
         
         <div className="mb-10 text-center md:text-left">
@@ -184,7 +182,6 @@ export default function AdminDashboard() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

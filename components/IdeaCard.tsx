@@ -16,7 +16,8 @@ const IdeaCard = ({ idea, currentUser, onEdit, onDelete }: IdeaProps) => {
   const [commentText, setCommentText] = useState("");
   
   // ✅ ভোট স্টেট
-  const [votes, setVotes] = useState(idea.voteCount || 0);
+  const initialVotes = idea.voteCount ?? idea._count?.votes ?? 0;
+  const [votes, setVotes] = useState(initialVotes);
   const [isVoting, setIsVoting] = useState(false);
   const [isVoted, setIsVoted] = useState(false); 
 
@@ -31,9 +32,20 @@ const IdeaCard = ({ idea, currentUser, onEdit, onDelete }: IdeaProps) => {
   // ✅ ভোট হ্যান্ডেল
   const handleVote = async () => {
     if (!currentUser || isVoting) return;
+
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("accessToken") || localStorage.getItem("token")
+        : null;
+
+    if (!token) {
+      alert("দয়া করে প্রথমে লগইন করুন।");
+      return;
+    }
+
     try {
       setIsVoting(true);
-      const res = await API.post(`/ideas/${ideaId}/vote`);
+      const res = await API.post(`/votes/${ideaId}`, { type: "UPVOTE" });
       if (res.data?.success) {
         if (isVoted) {
           setVotes((prev: number) => prev - 1);
@@ -43,10 +55,13 @@ const IdeaCard = ({ idea, currentUser, onEdit, onDelete }: IdeaProps) => {
           setIsVoted(true);
         }
       }
-    } catch (err) { 
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        alert("প্রমাণীকরণ ব্যর্থ হয়েছে। দয়া করে আবার লগইন করুন।");
+      }
       console.error("Vote failed", err);
-    } finally { 
-      setIsVoting(false); 
+    } finally {
+      setIsVoting(false);
     }
   };
 
@@ -84,7 +99,7 @@ const IdeaCard = ({ idea, currentUser, onEdit, onDelete }: IdeaProps) => {
         }
       } else {
         // Post New Comment or Reply
-        const res = await API.post(`/ideas/${ideaId}/comments`,
+        const res = await API.post(`/comments/${ideaId}`,
           { content: commentText, parentId: replyToId || null },
           { headers: { Authorization: `Bearer ${token}` } }
         );

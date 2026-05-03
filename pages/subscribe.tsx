@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import API from "../utils/api";
 
 export default function Subscribe() {
@@ -35,7 +33,6 @@ export default function Subscribe() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
 
       {/* 🔄 Loading Overlay */}
       {loading && (
@@ -132,8 +129,6 @@ export default function Subscribe() {
           <div className="w-12 h-px bg-gray-300"></div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

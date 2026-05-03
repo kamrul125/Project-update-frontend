@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
 import API from '../../utils/api';
 import { motion } from 'framer-motion';
 
@@ -42,7 +40,6 @@ export default function Login() {
 
   return (
     <div className="flex flex-col min-h-screen font-sans bg-gray-50">
-      <Navbar />
       <div className="flex items-center justify-center px-4 py-20 grow">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md p-12 bg-white border border-gray-100 shadow-2xl rounded-4xl shadow-green-100/30">
           <div className="mb-10 text-center">
@@ -66,7 +63,6 @@ export default function Login() {
           </div>
         </motion.div>
       </div>
-      <Footer />
     </div>
   );
 }
