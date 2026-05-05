@@ -3,7 +3,7 @@ import axios from "axios";
 // ✅ Base URL (production + local support)
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://backend-eco-spark1.vercel.app/api/v1";
+  "project-update-backend-2.vercel.app";
 
 const API = axios.create({
   baseURL: BASE_URL,
