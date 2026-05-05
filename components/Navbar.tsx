@@ -11,8 +11,8 @@ export default function Navbar() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
+  // ✅ ডাটা চেক করার জন্য একটি ফাংশন তৈরি করলাম
+  const checkAuth = () => {
     if (typeof window !== "undefined") {
       const storedToken = localStorage.getItem("token") || localStorage.getItem("accessToken");
       setToken(storedToken);
@@ -26,13 +26,32 @@ export default function Navbar() {
         } catch (error) {
           console.error("User data parsing failed:", error);
         }
+      } else {
+        // যদি ইউজার ডাটা না থাকে তবে স্টেট ক্লিয়ার করে দাও
+        setUserRole(null);
+        setUserName(null);
       }
     }
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    checkAuth();
+
+    // ✅ লগইন করার পর যাতে নেভবার সাথে সাথে আপডেট হয় তার জন্য ইভেন্ট লিসেনার
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("local-storage", checkAuth);
+
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("local-storage", checkAuth);
+    };
   }, []);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.clear();
+      // ✅ লগআউটের সময় ডাইরেক্ট রিফ্রেশ দেওয়া ভালো যাতে সব স্টেট রিসেট হয়
       window.location.href = "/auth/login";
     }
   };
@@ -42,7 +61,7 @@ export default function Navbar() {
   };
 
   if (!mounted) {
-    return null; // Avoid hydration mismatch
+    return null;
   }
 
   return (
@@ -53,6 +72,7 @@ export default function Navbar() {
           <span className="text-lg font-black uppercase tracking-tight">EcoSpark Hub</span>
         </Link>
 
+        {/* Desktop Links */}
         <div className="hidden items-center justify-between gap-8 md:flex">
           <div className="flex items-center gap-6 text-sm font-semibold uppercase tracking-[0.18em] text-neutral-700 dark:text-neutral-200">
             <Link href="/" className="transition-colors hover:text-primary-600 dark:hover:text-primary-300">Home</Link>
@@ -108,6 +128,7 @@ export default function Navbar() {
           </div>
         </div>
 
+        {/* Buttons for Mobile & Theme */}
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -115,7 +136,7 @@ export default function Navbar() {
             onClick={toggleTheme}
             className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-neutral-200 bg-white text-neutral-700 shadow-soft transition-all hover:border-primary-400 hover:text-primary-600 hover:shadow-medium focus-ring dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:text-primary-300"
           >
-            {theme === 'dark' ? "☀️" : "🌙"}
+            {mounted && theme === 'dark' ? "☀️" : "🌙"}
           </button>
 
           <button
@@ -129,6 +150,7 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* Mobile Menu */}
       {menuOpen && (
         <div className="border-t border-neutral-200 bg-white/95 px-6 py-5 shadow-large dark:border-neutral-800 dark:bg-neutral-950/95 md:hidden">
           <div className="grid gap-4 text-sm font-semibold uppercase tracking-[0.18em] text-neutral-700 dark:text-neutral-200">
@@ -149,7 +171,7 @@ export default function Navbar() {
                 <Link href={userRole === "ADMIN" ? "/admin" : "/dashboard/member"} className="block rounded-2xl border border-neutral-200 px-4 py-3 text-center text-sm font-semibold text-neutral-900 transition-all hover:border-primary-400 focus-ring dark:border-neutral-700 dark:text-neutral-100">
                   {userRole === "ADMIN" ? "Admin" : "Dashboard"}
                 </Link>
-                <button onClick={handleLogout} className="block rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-semibold text-neutral-900 transition-all hover:border-primary-400 focus-ring dark:border-neutral-700 dark:text-neutral-100">
+                <button onClick={handleLogout} className="block rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-semibold text-neutral-900 transition-all hover:border-primary-400 focus-ring dark:border-neutral-700 dark:text-neutral-100 text-left">
                   Logout
                 </button>
               </>
