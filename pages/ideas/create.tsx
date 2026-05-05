@@ -10,6 +10,15 @@ export default function CreateIdea() {
   const [category, setCategory] = useState("");
   const [image, setImage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchingCategories, setFetchingCategories] = useState(true);
+
+  // ডিফল্ট ৪টি ক্যাটাগরি যা আমরা সবসময় দেখাতে চাই
+  const staticCategories = [
+    { id: "energy-id", name: "Energy" },
+    { id: "waste-id", name: "Waste" },
+    { id: "transportation-id", name: "Transportation" },
+    { id: "sustainability-id", name: "Sustainability" }
+  ];
 
   const getAuthHeader = () => {
     const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("accessToken")) : null;
@@ -19,16 +28,33 @@ export default function CreateIdea() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        setFetchingCategories(true);
         const res = await API.get("/categories");
         const dbData = res.data?.data || res.data || [];
         
-        // যদি DB থেকে কোনো ক্যাটাগরি না আসে, তবে আমরা ড্রপডাউন খালি রাখবো না
-        setCategories(dbData);
-        if (dbData.length > 0) {
-          setCategory(dbData[0].id);
+        // এপিআই থেকে ডেটা আসলে সেটার সাথে আমাদের স্ট্যাটিক ক্যাটাগরিগুলো মিলিয়ে ফেলবো
+        // যাতে কোনো ডুপ্লিকেট না হয় (নামের ভিত্তিতে চেক করে)
+        if (Array.isArray(dbData) && dbData.length > 0) {
+          const combined = [...staticCategories];
+          dbData.forEach((dbCat: any) => {
+            const exists = combined.some(c => c.name.toLowerCase() === dbCat.name.toLowerCase());
+            if (!exists) {
+              combined.push(dbCat);
+            } else {
+              // যদি ডাটাবেসে এই নামে ক্যাটাগরি থাকে, তবে স্ট্যাটিক ID-র বদলে ডাটাবেসের ID ব্যবহার করা ভালো
+              const index = combined.findIndex(c => c.name.toLowerCase() === dbCat.name.toLowerCase());
+              combined[index].id = dbCat.id;
+            }
+          });
+          setCategories(combined);
+        } else {
+          setCategories(staticCategories);
         }
       } catch (err: any) {
         console.error("Fetch Error:", err.message);
+        setCategories(staticCategories);
+      } finally {
+        setFetchingCategories(false);
       }
     };
     fetchCategories();
@@ -36,7 +62,7 @@ export default function CreateIdea() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category && categories.length > 0) {
+    if (!category) {
       alert("Please select a category!");
       return;
     }
@@ -66,7 +92,6 @@ export default function CreateIdea() {
     }
   };
 
-  // ক্যাটাগরির নামের সাথে ইমোজি যোগ করার ফাংশন
   const getEmoji = (name: string) => {
     const n = name.toLowerCase();
     if (n.includes("waste")) return "♻️";
@@ -107,23 +132,30 @@ export default function CreateIdea() {
             {/* Category Section */}
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase text-gray-400 ml-1 tracking-widest">Category</label>
-              <select 
-                className="w-full p-5 font-bold text-gray-800 border-none cursor-pointer bg-gray-50 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none appearance-none" 
-                value={category} 
-                onChange={(e) => setCategory(e.target.value)} 
-                required
-              >
-                {categories.length > 0 ? (
-                  <>
-                    <option value="" disabled>Select a category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name} {getEmoji(cat.name)}</option>
-                    ))}
-                  </>
-                ) : (
-                  <option value="">Loading Categories...</option>
-                )}
-              </select>
+              <div className="relative">
+                <select 
+                  className="w-full p-5 font-bold text-gray-800 border-none cursor-pointer bg-gray-50 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none appearance-none" 
+                  value={category} 
+                  onChange={(e) => setCategory(e.target.value)} 
+                  required
+                >
+                  <option value="" disabled>Select Category</option>
+                  {fetchingCategories ? (
+                    <option disabled>Loading...</option>
+                  ) : (
+                    categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name} {getEmoji(cat.name)}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-5 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Image URL */}
@@ -136,9 +168,6 @@ export default function CreateIdea() {
                 value={image} 
                 onChange={(e) => setImage(e.target.value)} 
               />
-              <p className="text-[10px] text-gray-400 italic mt-1 ml-1">
-                *If no link is provided, a professional eco-friendly image will be used.
-              </p>
             </div>
 
             {/* Description */}
@@ -154,7 +183,6 @@ export default function CreateIdea() {
               />
             </div>
 
-            {/* Submit Button */}
             <button 
               type="submit" 
               disabled={loading} 
